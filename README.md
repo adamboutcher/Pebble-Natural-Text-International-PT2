@@ -1,4 +1,4 @@
-Natural Time International
+Natural Text International
 ==========================
 
 A watchface for the [Pebble][] that displays the exact time in natural
