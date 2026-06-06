@@ -36,7 +36,7 @@ phone:
 Supported languages and example phrases:
 
 | Language   | Past example          | To example         | On the hour     |
-|------------|-----------------------|--------------------|-----------------|
+|------------|-----------------------|--------------------|------------------|
 | English    | twenty four past seven | twelve to two     | eight o'clock   |
 | German     | zwanzig vier nach sieben | zwölf vor zwei  | acht Uhr        |
 | French     | vingt quatre passé sept | douze avant deux | huit heures    |
@@ -71,6 +71,6 @@ Contributing
 If you would like to request a translation, report an error, or suggest
 improvements, please [open an issue][issue].
 
-[issue]: https://github.com/adamboutcher/Sliding-Text-International-PT2/issues/new
+[issue]: https://github.com/adamboutcher/Pebble-Natural-Text-International-PT2/issues/new
 
 Pull requests are welcome.
