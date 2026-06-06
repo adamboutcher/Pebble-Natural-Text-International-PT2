@@ -139,8 +139,7 @@ static size_t append_number_spoken(char* buffer, size_t avail, int n, const Spea
   return w;
 }
 
-void time_to_words(Language lang, int hours, int minutes, int seconds, char* words, size_t buffer_size) {
-  (void)seconds;
+void time_to_words(Language lang, int hours, int minutes, char* words, size_t buffer_size) {
   size_t remaining = buffer_size;
   memset(words, 0, buffer_size);
 
