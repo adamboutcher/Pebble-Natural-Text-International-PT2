@@ -109,21 +109,18 @@ static const char* const TENS_EN[] = {
   "", "", "twenty", "thirty", "forty", "fifty"
 };
 
-// Appends written English minutes (0-59) to buffer, returns bytes written.
-static size_t append_english_minutes(char* buffer, size_t remaining, int minutes) {
+// Appends n (1-59) as written English words, returns bytes written.
+static size_t append_number_as_words(char* buffer, size_t available, int n) {
   size_t written = 0;
-  if (minutes == 0) {
-    written += append_string(buffer, remaining - written, "o'clock");
-  } else if (minutes < 10) {
-    written += append_string(buffer, remaining - written, "oh ");
-    written += append_string(buffer, remaining - written, ONES_EN[minutes]);
-  } else if (minutes < 20) {
-    written += append_string(buffer, remaining - written, TEENS_EN[minutes - 10]);
+  if (n < 10) {
+    written += append_string(buffer, available - written, ONES_EN[n]);
+  } else if (n < 20) {
+    written += append_string(buffer, available - written, TEENS_EN[n - 10]);
   } else {
-    written += append_string(buffer, remaining - written, TENS_EN[minutes / 10]);
-    if (minutes % 10 != 0) {
-      written += append_string(buffer, remaining - written, " ");
-      written += append_string(buffer, remaining - written, ONES_EN[minutes % 10]);
+    written += append_string(buffer, available - written, TENS_EN[n / 10]);
+    if (n % 10 != 0) {
+      written += append_string(buffer, available - written, " ");
+      written += append_string(buffer, available - written, ONES_EN[n % 10]);
     }
   }
   return written;
@@ -135,13 +132,26 @@ void time_to_words(Language lang, int hours, int minutes, int seconds, char* wor
   memset(words, 0, buffer_size);
 
   if (lang == EN_US || lang == EN_GB) {
-    // Full written-out time: e.g. "*three forty five"
-    const char* hour = get_hour(lang, hours % 24);
-    remaining -= append_string(words, remaining, "*");
-    remaining -= append_string(words, remaining, hour);
-    remaining -= append_string(words, remaining, " ");
-    remaining -= append_english_minutes(words, remaining, minutes);
-    remaining -= append_string(words, remaining, " ");
+    // Exact spoken English time: "twenty four past *seven", "*eight o'clock", "twelve to *two"
+    int hour_index = hours % 24;
+    const char* hour      = get_hour(lang, hour_index);
+    const char* next_hour = get_hour(lang, (hour_index + 1) % 24);
+
+    if (minutes == 0) {
+      remaining -= append_string(words, remaining, "*");
+      remaining -= append_string(words, remaining, hour);
+      remaining -= append_string(words, remaining, " o'clock ");
+    } else if (minutes <= 30) {
+      remaining -= append_number_as_words(words, remaining, minutes);
+      remaining -= append_string(words, remaining, " past *");
+      remaining -= append_string(words, remaining, hour);
+      remaining -= append_string(words, remaining, " ");
+    } else {
+      remaining -= append_number_as_words(words, remaining, 60 - minutes);
+      remaining -= append_string(words, remaining, " to *");
+      remaining -= append_string(words, remaining, next_hour);
+      remaining -= append_string(words, remaining, " ");
+    }
   } else {
     // Fuzzy five-minute interval time for all other languages
     int half_mins  = (2 * minutes) + (seconds / 30);
@@ -154,9 +164,9 @@ void time_to_words(Language lang, int hours, int minutes, int seconds, char* wor
       hour_index = hours % 24;
     }
 
-    const char* hour = get_hour(lang, hour_index);
+    const char* hour      = get_hour(lang, hour_index);
     const char* next_hour = get_hour(lang, (hour_index + 1) % 24);
-    const char* rel  = get_rel(lang, rel_index);
+    const char* rel       = get_rel(lang, rel_index);
 
     remaining -= interpolate_and_append(words, remaining, rel, hour, next_hour);
     remaining -= append_string(words, remaining, " ");
