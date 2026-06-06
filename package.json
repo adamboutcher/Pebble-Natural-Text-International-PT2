@@ -2,12 +2,12 @@
     "author": "Adam Boutcher",
     "dependencies": {},
     "keywords": [],
-    "name": "fuzzy-text-int-l-2",
+    "name": "natural-text-int-l",
     "pebble": {
         "capabilities": [
             "configurable"
         ],
-        "displayName": "Fuzzy Text International 2",
+        "displayName": "Natural Text International",
         "enableMultiJS": false,
         "messageKeys": [],
         "projectType": "native",
@@ -37,10 +37,10 @@
             "gabbro",
             "flint"
         ],
-        "uuid": "88b9a785-1c45-4a56-837f-8c202e4f15bd",
+        "uuid": "838547c9-dbc0-411a-9566-089201bbbed2",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "2.2.2"
+    "version": "1.0.0"
 }
