@@ -45,14 +45,15 @@ typedef struct {
   const char* past;
   const char* to;
   const char* oclock;
-  const char* half;  // "" = "thirty past"; non-empty = "halb/halv/half *NEXT_HOUR"
+  const char* half;  // "" = use "thirty past"; non-empty = half-past phrase
+  int half_next;   // 1 = "half *NEXT_HOUR" (DE/NO/SV/NL); 0 = "half *HOUR" (EN)
   int hour_first;  // 0: NUMBER past *HOUR  /  1: *HOUR past NUMBER
 } SpeakFormat;
 ```
 
 `hour_first=0` → Germanic/English order ("twenty four past *seven").  
 `hour_first=1` → Romance order ("*siete y veinte cuatro").  
-`half` non-empty → special 30-minute form ("halb *zwei") used by DE, NO, SV, NL.
+`half` non-empty → special 30-minute form: EN "half past *seven" (current hour), DE/NO/SV/NL "halb *zwei" (next hour).
 
 ### Adding a language
 

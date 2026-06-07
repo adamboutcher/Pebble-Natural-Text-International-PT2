@@ -61,7 +61,8 @@ typedef struct {
   const char* past;
   const char* to;
   const char* oclock;
-  const char* half;  // "" = use "thirty past"; non-empty = "halb/halv/half *NEXT_HOUR"
+  const char* half;  // "" = use "thirty past"; non-empty = half-past phrase
+  int half_next;   // 1 = "half *NEXT_HOUR" (DE/NO/SV/NL); 0 = "half *HOUR" (EN)
   int hour_first;  // 0: NUMBER past *HOUR  /  1: *HOUR past NUMBER
 } SpeakFormat;
 
@@ -111,16 +112,16 @@ static const char* const TEENS_PT[] = {"dez","onze","doze","treze","catorze","qu
 static const char* const TENS_PT[]  = {"","","vinte","trinta","quarenta","cinquenta"};
 
 static const SpeakFormat speak_formats[] = {
-  [CA]    = { ONES_CA, TEENS_CA, TENS_CA, "i",     "menys", "en punt",  "",     1 },
-  [DE]    = { ONES_DE, TEENS_DE, TENS_DE, "nach",  "vor",   "Uhr",      "halb", 0 },
-  [EN_GB] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "",     0 },
-  [EN_US] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "",     0 },
-  [ES]    = { ONES_ES, TEENS_ES, TENS_ES, "y",     "menos", "en punto", "",     1 },
-  [FR]    = { ONES_FR, TEENS_FR, TENS_FR, "passé", "avant", "heures",   "",     0 },
-  [NO]    = { ONES_NO, TEENS_NO, TENS_NO, "over",  "på",    "",         "halv", 0 },
-  [SV]    = { ONES_SV, TEENS_SV, TENS_SV, "över",  "i",     "",         "halv", 0 },
-  [NL]    = { ONES_NL, TEENS_NL, TENS_NL, "over",  "voor",  "uur",      "half", 0 },
-  [PT]    = { ONES_PT, TEENS_PT, TENS_PT, "e",     "menos", "em ponto", "",     1 },
+  [CA]    = { ONES_CA, TEENS_CA, TENS_CA, "i",     "menys", "en punt",  "",          0, 1 },
+  [DE]    = { ONES_DE, TEENS_DE, TENS_DE, "nach",  "vor",   "Uhr",      "halb",      1, 0 },
+  [EN_GB] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "half past", 0, 0 },
+  [EN_US] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "half past", 0, 0 },
+  [ES]    = { ONES_ES, TEENS_ES, TENS_ES, "y",     "menos", "en punto", "",          0, 1 },
+  [FR]    = { ONES_FR, TEENS_FR, TENS_FR, "passé", "avant", "heures",   "",          0, 0 },
+  [NO]    = { ONES_NO, TEENS_NO, TENS_NO, "over",  "på",    "",         "halv",      1, 0 },
+  [SV]    = { ONES_SV, TEENS_SV, TENS_SV, "över",  "i",     "",         "halv",      1, 0 },
+  [NL]    = { ONES_NL, TEENS_NL, TENS_NL, "over",  "voor",  "uur",      "half",      1, 0 },
+  [PT]    = { ONES_PT, TEENS_PT, TENS_PT, "e",     "menos", "em ponto", "",          0, 1 },
 };
 
 // Appends n (1–59) as spoken words; returns bytes written.
@@ -159,10 +160,10 @@ void time_to_words(Language lang, int hours, int minutes, char* words, size_t bu
     remaining -= append_string(words, remaining, " ");
 
   } else if (minutes == 30 && f->half[0]) {
-    // e.g. "halb *zwei" / "halv *to" / "half *twee"
+    // e.g. "half past *seven" (EN) / "halb *zwei" (DE) / "halv *to" (NO/SV) / "half *twee" (NL)
     remaining -= append_string(words, remaining, f->half);
     remaining -= append_string(words, remaining, " *");
-    remaining -= append_string(words, remaining, next_hour);
+    remaining -= append_string(words, remaining, f->half_next ? next_hour : hour);
     remaining -= append_string(words, remaining, " ");
 
   } else if (minutes <= 30) {
