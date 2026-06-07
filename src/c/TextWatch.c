@@ -297,11 +297,11 @@ static int configureLayersForText(char text[NUM_LINES][BUFFER_SIZE], char format
 	return numLines;
 }
 
-static void time_to_lines(int hours, int minutes, int seconds, char lines[NUM_LINES][BUFFER_SIZE], char format[])
+static void time_to_lines(int hours, int minutes, char lines[NUM_LINES][BUFFER_SIZE], char format[])
 {
 	int length = NUM_LINES * BUFFER_SIZE + 1;
 	char timeStr[length];
-	time_to_words(lang, hours, minutes, seconds, timeStr, length);
+	time_to_words(lang, hours, minutes, timeStr, length);
 	
 	// Empty all lines
 	for (int i = 0; i < NUM_LINES; i++)
@@ -408,7 +408,7 @@ static void display_time(struct tm *t)
 	char format[NUM_LINES];
 
 	if (showTime) {
-		time_to_lines(t->tm_hour, t->tm_min, t->tm_sec, textLine, format);
+		time_to_lines(t->tm_hour, t->tm_min, textLine, format);
 	} else {
 		date_to_lines(t->tm_wday, t->tm_mday, t->tm_mon, textLine, format);
 	}
@@ -488,7 +488,7 @@ static void display_initial_time(struct tm *t)
 	char textLine[NUM_LINES][BUFFER_SIZE];
 	char format[NUM_LINES];
 
-	time_to_lines(t->tm_hour, t->tm_min, t->tm_sec, textLine, format);
+	time_to_lines(t->tm_hour, t->tm_min, textLine, format);
 
 	// This configures the nextLayer for each line
 	currentNLines = configureLayersForText(textLine, format);

@@ -17,36 +17,8 @@ size_t min(const size_t a, const size_t b) {
 
 static size_t append_string(char* buffer, const size_t length, const char* str) {
   strncat(buffer, str, length);
-
   size_t written = strlen(str);
   return (length > written) ? written : length;
-}
-
-static size_t interpolate_and_append(char* buffer, const size_t length,
-    const char* parent_str, const char* first_placeholder_str, const char* second_placeholder_str) {
-  const char* placeholder_str;
-  char* insert_ptr = strstr(parent_str, "$1");
-
-  if (insert_ptr) {
-    placeholder_str = first_placeholder_str;
-  }
-  else {
-    insert_ptr = strstr(parent_str, "$2");
-    placeholder_str = second_placeholder_str;
-  }
-
-  size_t parent_len = strlen(parent_str);
-  size_t insert_offset = insert_ptr ? (size_t) insert_ptr - (size_t) parent_str : parent_len;
-
-  size_t remaining = length;
-
-  remaining -= append_string(buffer, min(insert_offset, remaining), parent_str);
-  remaining -= append_string(buffer, remaining, placeholder_str);
-  if (insert_ptr) {
-    remaining -= append_string(buffer, remaining, insert_ptr + 2);
-  }
-
-  return remaining;
 }
 
 /* simple base 10 only itoa, found: http://stackoverflow.com/questions/20435527 */
@@ -58,21 +30,10 @@ char * itoa10(int value, char *result)
     *p++ = '-';
     value *= -1;
   }
-
-  /* move number of required chars and null terminate */
   int shift = value;
-  do {
-    ++p;
-    shift /= 10;
-  } while (shift);
+  do { ++p; shift /= 10; } while (shift);
   *p = '\0';
-
-  /* populate result in reverse order */
-  do {
-    *--p = digit [value % 10];
-    value /= 10;
-  } while (value);
-
+  do { *--p = digit[value % 10]; value /= 10; } while (value);
   return result;
 }
 
@@ -91,42 +52,150 @@ const char* get_hour(Language lang, int index) {
   return lang_strings[lang].hours[index];
 }
 
-const char* get_rel(Language lang, int index) {
-  return lang_strings[lang].rels[index];
+// ── Spoken time: number-word tables ─────────────────────────────────────────
+
+typedef struct {
+  const char* const* ones;   // [0]="" [1]-[9]
+  const char* const* teens;  // [0]="ten" [1]-[9]
+  const char* const* tens;   // [2]-[5]
+  const char* past;
+  const char* to;
+  const char* oclock;
+  int hour_first;  // 0: NUMBER past *HOUR  /  1: *HOUR past NUMBER
+} SpeakFormat;
+
+// English
+static const char* const ONES_EN[]  = {"","one","two","three","four","five","six","seven","eight","nine"};
+static const char* const TEENS_EN[] = {"ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"};
+static const char* const TENS_EN[]  = {"","","twenty","thirty","forty","fifty"};
+
+// German — "fünf zehn" splits the 9-byte UTF-8 "fünfzehn" into two tokens
+static const char* const ONES_DE[]  = {"","ein","zwei","drei","vier","fünf","sechs","sieben","acht","neun"};
+static const char* const TEENS_DE[] = {"zehn","elf","zwölf","dreizehn","vierzehn","fünf zehn","sechzehn","siebzehn","achtzehn","neunzehn"};
+static const char* const TENS_DE[]  = {"","","zwanzig","dreißig","vierzig","fünfzig"};
+
+// French — 17-19 use hyphenated forms (≤8 bytes each)
+static const char* const ONES_FR[]  = {"","un","deux","trois","quatre","cinq","six","sept","huit","neuf"};
+static const char* const TEENS_FR[] = {"dix","onze","douze","treize","quatorze","quinze","seize","dix-sept","dix-huit","dix-neuf"};
+static const char* const TENS_FR[]  = {"","","vingt","trente","quarante","cinquante"};
+
+// Spanish — 16-19 split into two tokens to avoid overlong compound forms
+static const char* const ONES_ES[]  = {"","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"};
+static const char* const TEENS_ES[] = {"diez","once","doce","trece","catorce","quince","diez seis","diez siete","diez ocho","diez nueve"};
+static const char* const TENS_ES[]  = {"","","veinte","treinta","cuarenta","cincuenta"};
+
+// Norwegian
+static const char* const ONES_NO[]  = {"","en","to","tre","fire","fem","seks","sju","åtte","ni"};
+static const char* const TEENS_NO[] = {"ti","elleve","tolv","tretten","fjorten","femten","seksten","sytten","atten","nitten"};
+static const char* const TENS_NO[]  = {"","","tjue","tretti","førti","femti"};
+
+// Swedish
+static const char* const ONES_SV[]  = {"","ett","två","tre","fyra","fem","sex","sju","åtta","nio"};
+static const char* const TEENS_SV[] = {"tio","elva","tolv","tretton","fjorton","femton","sexton","sjutton","arton","nitton"};
+static const char* const TENS_SV[]  = {"","","tjugo","trettio","fyrtio","femtio"};
+
+// Dutch — 17 and 19 split to avoid 9-byte overflow
+static const char* const ONES_NL[]  = {"","één","twee","drie","vier","vijf","zes","zeven","acht","negen"};
+static const char* const TEENS_NL[] = {"tien","elf","twaalf","dertien","veertien","vijftien","zestien","zeven tien","achttien","negen tien"};
+static const char* const TENS_NL[]  = {"","","twintig","dertig","veertig","vijftig"};
+
+// Catalan
+static const char* const ONES_CA[]  = {"","un","dos","tres","quatre","cinc","sis","set","vuit","nou"};
+static const char* const TEENS_CA[] = {"deu","onze","dotze","tretze","catorze","quinze","setze","disset","divuit","dinou"};
+static const char* const TENS_CA[]  = {"","","vint","trenta","quaranta","cinquanta"};
+
+// Portuguese — 16-17 split to avoid 9-byte overflow
+static const char* const ONES_PT[]  = {"","um","dois","três","quatro","cinco","seis","sete","oito","nove"};
+static const char* const TEENS_PT[] = {"dez","onze","doze","treze","catorze","quinze","dez seis","dez sete","dezoito","dezanove"};
+static const char* const TENS_PT[]  = {"","","vinte","trinta","quarenta","cinquenta"};
+
+static const SpeakFormat speak_formats[] = {
+  [CA]    = { ONES_CA, TEENS_CA, TENS_CA, "i",     "menys", "en punt",  1 },
+  [DE]    = { ONES_DE, TEENS_DE, TENS_DE, "nach",  "vor",   "Uhr",      0 },
+  [EN_GB] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  0 },
+  [EN_US] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  0 },
+  [ES]    = { ONES_ES, TEENS_ES, TENS_ES, "y",     "menos", "en punto", 1 },
+  [FR]    = { ONES_FR, TEENS_FR, TENS_FR, "passé", "avant", "heures",   0 },
+  [NO]    = { ONES_NO, TEENS_NO, TENS_NO, "over",  "på",    "",         0 },
+  [SV]    = { ONES_SV, TEENS_SV, TENS_SV, "över",  "i",     "",         0 },
+  [NL]    = { ONES_NL, TEENS_NL, TENS_NL, "over",  "voor",  "uur",      0 },
+  [PT]    = { ONES_PT, TEENS_PT, TENS_PT, "e",     "menos", "em ponto", 1 },
+};
+
+// Appends n (1–59) as spoken words; returns bytes written.
+static size_t append_number_spoken(char* buffer, size_t avail, int n, const SpeakFormat* f) {
+  size_t w = 0;
+  if (n < 10) {
+    w += append_string(buffer, avail - w, f->ones[n]);
+  } else if (n < 20) {
+    w += append_string(buffer, avail - w, f->teens[n - 10]);
+  } else {
+    w += append_string(buffer, avail - w, f->tens[n / 10]);
+    if (n % 10) {
+      w += append_string(buffer, avail - w, " ");
+      w += append_string(buffer, avail - w, f->ones[n % 10]);
+    }
+  }
+  return w;
 }
 
-void time_to_words(Language lang, int hours, int minutes, int seconds, char* words, size_t buffer_size) {
-
+void time_to_words(Language lang, int hours, int minutes, char* words, size_t buffer_size) {
   size_t remaining = buffer_size;
   memset(words, 0, buffer_size);
 
-  // We want to operate with a resolution of 30 seconds.  So multiply
-  // minutes and seconds by 2.  Then divide by (2 * 5) to carve the hour
-  // into five minute intervals.
-  // TODO: the seconds term is dead code - the tick handler uses MINUTE_UNIT
-  // so seconds is always 0. The 30-second resolution was never active.
-  // Consider simplifying to: int rel_index = ((minutes * 2 + 5) / 10) % 12;
-  // and dropping the seconds parameter from this function entirely.
-  int half_mins  = (2 * minutes) + (seconds / 30);
-  int rel_index  = ((half_mins + 5) / (2 * 5)) % 12;
-  int hour_index;
+  const SpeakFormat* f = &speak_formats[lang];
+  const char* hour      = get_hour(lang, hours % 24);
+  const char* next_hour = get_hour(lang, (hours % 24 + 1) % 24);
 
-  if (rel_index == 0 && minutes > 30) {
-    hour_index = (hours + 1) % 24;
+  if (minutes == 0) {
+    // e.g. "*eight o'clock" / "*acht Uhr" / "*sju" (NO/SV have empty oclock)
+    remaining -= append_string(words, remaining, "*");
+    remaining -= append_string(words, remaining, hour);
+    if (f->oclock[0]) {
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_string(words, remaining, f->oclock);
+    }
+    remaining -= append_string(words, remaining, " ");
+
+  } else if (minutes <= 30) {
+    if (f->hour_first) {
+      // e.g. "*siete y veinte cuatro"
+      remaining -= append_string(words, remaining, "*");
+      remaining -= append_string(words, remaining, hour);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_string(words, remaining, f->past);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_number_spoken(words, remaining, minutes, f);
+    } else {
+      // e.g. "twenty four past *seven"
+      remaining -= append_number_spoken(words, remaining, minutes, f);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_string(words, remaining, f->past);
+      remaining -= append_string(words, remaining, " *");
+      remaining -= append_string(words, remaining, hour);
+    }
+    remaining -= append_string(words, remaining, " ");
+
+  } else {
+    int to_mins = 60 - minutes;
+    if (f->hour_first) {
+      // e.g. "*dos menos doce"
+      remaining -= append_string(words, remaining, "*");
+      remaining -= append_string(words, remaining, next_hour);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_string(words, remaining, f->to);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_number_spoken(words, remaining, to_mins, f);
+    } else {
+      // e.g. "twelve to *two"
+      remaining -= append_number_spoken(words, remaining, to_mins, f);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_string(words, remaining, f->to);
+      remaining -= append_string(words, remaining, " *");
+      remaining -= append_string(words, remaining, next_hour);
+    }
+    remaining -= append_string(words, remaining, " ");
   }
-  else {
-    hour_index = hours % 24;
-  }
-
-  const char* hour = get_hour(lang, hour_index);
-  const char* next_hour = get_hour(lang, (hour_index + 1) % 24);
-  const char* rel  = get_rel(lang, rel_index);
-
-  remaining -= interpolate_and_append(words, remaining, rel, hour, next_hour);
-
-  // Leave one space at the end
-  remaining -= append_string(words, remaining, " ");
-
 }
 
 const char* get_day(Language lang, int index) {
@@ -159,14 +228,12 @@ const char* get_date_suffix(Language lang, int date) {
   }
 }
 
-// Replace $1, $2, $3 in fmt with s1, s2, s3 respectively.
 static void format_date_string(char* buffer, size_t length,
                                 const char* fmt,
                                 const char* s1, const char* s2, const char* s3) {
   memset(buffer, 0, length);
   size_t pos = 0;
   const char* src = fmt;
-
   while (*src && pos < length - 1) {
     if (*src == '$' && *(src + 1) >= '1' && *(src + 1) <= '3') {
       const char* sub = NULL;
@@ -177,9 +244,7 @@ static void format_date_string(char* buffer, size_t length,
       }
       src += 2;
       if (sub) {
-        while (*sub && pos < length - 1) {
-          buffer[pos++] = *sub++;
-        }
+        while (*sub && pos < length - 1) buffer[pos++] = *sub++;
       }
     } else {
       buffer[pos++] = *src++;
@@ -191,7 +256,6 @@ void date_to_words(Language lang, int day, int date, int month, char* words, siz
   char date_str[6];
   itoa10(date, date_str);
   strncat(date_str, get_date_suffix(lang, date), sizeof(date_str) - strlen(date_str) - 1);
-
   format_date_string(words, buffer_size,
                      get_date_format(lang),
                      get_day(lang, day),
