@@ -114,8 +114,8 @@ static const char* const TENS_PT[]  = {"","","vinte","trinta","quarenta","cinque
 static const SpeakFormat speak_formats[] = {
   [CA]    = { ONES_CA, TEENS_CA, TENS_CA, "i",     "menys", "en punt",  "",          0, 1 },
   [DE]    = { ONES_DE, TEENS_DE, TENS_DE, "nach",  "vor",   "Uhr",      "halb",      1, 0 },
-  [EN_GB] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "half past", 0, 0 },
-  [EN_US] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "half past", 0, 0 },
+  [EN_GB] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "half", 0, 0 },
+  [EN_US] = { ONES_EN, TEENS_EN, TENS_EN, "past",  "to",    "o'clock",  "half", 0, 0 },
   [ES]    = { ONES_ES, TEENS_ES, TENS_ES, "y",     "menos", "en punto", "",          0, 1 },
   [FR]    = { ONES_FR, TEENS_FR, TENS_FR, "passé", "avant", "heures",   "",          0, 0 },
   [NO]    = { ONES_NO, TEENS_NO, TENS_NO, "over",  "på",    "",         "halv",      1, 0 },
@@ -160,10 +160,19 @@ void time_to_words(Language lang, int hours, int minutes, char* words, size_t bu
     remaining -= append_string(words, remaining, " ");
 
   } else if (minutes == 30 && f->half[0]) {
-    // e.g. "half past *seven" (EN) / "halb *zwei" (DE) / "halv *to" (NO/SV) / "half *twee" (NL)
-    remaining -= append_string(words, remaining, f->half);
-    remaining -= append_string(words, remaining, " *");
-    remaining -= append_string(words, remaining, f->half_next ? next_hour : hour);
+    if (f->half_next) {
+      // e.g. "halb *zwei" / "halv *to" / "half *twee"
+      remaining -= append_string(words, remaining, f->half);
+      remaining -= append_string(words, remaining, " *");
+      remaining -= append_string(words, remaining, next_hour);
+    } else {
+      // e.g. "half past *seven" — "half" substitutes for "thirty" in the normal past stream
+      remaining -= append_string(words, remaining, f->half);
+      remaining -= append_string(words, remaining, " ");
+      remaining -= append_string(words, remaining, f->past);
+      remaining -= append_string(words, remaining, " *");
+      remaining -= append_string(words, remaining, hour);
+    }
     remaining -= append_string(words, remaining, " ");
 
   } else if (minutes <= 30) {
